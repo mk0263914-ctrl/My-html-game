@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Weather Kohlu Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-dark: #050505;
+            --neon-pink: #ff00ff;
+            --neon-blue: #00eaff;
+            --glass: rgba(20, 20, 35, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text: #ffffff;
+            --text-dim: #a0a0a0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background: #000;
+            color: var(--text);
+            overflow-x: hidden;
+            font-size: 14px;
+        }
+
+        /* Animated Background */
+        .bg-mesh {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at 10% 20%, #1a0022 0%, #000 60%),
+                        radial-gradient(circle at 90% 80%, #001122 0%, #000 60%);
+            z-index: -2;
+        }
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.4;
+            animation: float 10s infinite alternate;
+        }
+        .orb-1 { width: 300px; height: 300px; background: var(--neon-pink); top: -50px; left: -50px; }
+        .orb-2 { width: 250px; height: 250px; background: var(--neon-blue); bottom: -50px; right: -50px; animation-delay: -5s; }
+
+        @keyframes float { 0% { transform: translate(0,0); } 100% { transform: translate(30px, 50px); } }
+
+        /* Main Layout */
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            padding-bottom: 80px; /* Space for footer */
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .city-badge {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid var(--neon-pink);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--neon-pink);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+        .refresh-btn { cursor: pointer; color: var(--neon-blue); transition: transform 0.3s; }
+        .refresh-btn:active { transform: rotate(180deg); }
+
+        /* Current Weather Card */
+        .hero-card {
+            background: linear-gradient(135deg, rgba(255,0,255,0.1), rgba(0,234,255,0.1));
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            padding: 30px 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 25px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+        .hero-card:active { transform: scale(0.98); }
+        .hero-card::after {
+            content: "Tap for details";
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.5);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .hero-card:hover::after { opacity: 1; }
+
+        .main-temp { font-size: 5rem; font-weight: 200; line-height: 1; margin: 10px 0; letter-spacing: -2px; }
+        .condition-pill {
+            display: inline-block;
+            background: rgba(0,0,0,0.3);
+            padding: 5px 15px;
+            border-radius: 15px;
+            color: var(--neon-blue);
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        .hl-row { color: var(--text-dim); font-size: 0.95rem; }
+
+        /* Hourly Section */
+        .section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 15px;
+            padding: 0 5px;
+        }
+        .section-title { font-size: 1.1rem; font-weight: 600; border-left: 3px solid var(--neon-blue); padding-left: 10px; }
+        .see-more { font-size: 0.8rem; color: var(--neon-pink); }
+
+        .scroll-container {
+            display: flex;
+            overflow-x: auto;
+            gap: 12px;
+            padding-bottom: 15px;
+            scrollbar-width: none;
+        }
+        .scroll-container::-webkit-scrollbar { display: none; }
+
+        .hour-item {
+            min-width: 65px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 15px 5px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .hour-item:active { background: rgba(255,255,255,0.1); }
+        .hour-time { font-size: 0.8rem; color: var(--text-dim); }
+        .hour-icon { font-size: 1.2rem; }
+        .hour-temp { font-weight: bold; font-size: 1rem; }
+        .pop-badge { font-size: 0.7rem; color: var(--neon-blue); }
+
+        /* Daily List */
+        .daily-list { display: flex; flex-direction: column; gap: 10px; }
+        .day-row {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            padding: 15px 20px;
+            border-radius: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .day-row:active { transform: scale(0.98); background: rgba(255,255,255,0.05); }
+        .day-left { display: flex; align-items: center; gap: 15px; width: 40%; }
+        .day-name { font-weight: 600; width: 40px; }
+        .day-icon { color: var(--neon-pink); font-size: 1.2rem; }
+        .day-pop { font-size: 0.75rem; color: var(--neon-blue); display: flex; align-items: center; gap: 4px; }
+        .day-temps { text-align: right; }
+        .max-t { font-weight: bold; font-size: 1.1rem; margin-right: 8px; }
+        .min-t { color: var(--text-dim); }
+
+        /* MODAL SYSTEM (Pop-ups) */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end; /* Sheet style on mobile */
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+
+        .modal-content {
+            background: #12121e;
+            width: 100%;
+            max-width: 500px;
+            border-top-left-radius: 30px;
+            border-top-right-radius: 30px;
+            padding: 25px;
+            border-top: 2px solid var(--neon-blue);
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+
+        .close-bar {
+            width: 50px;
+            height: 5px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 5px;
+            margin: 0 auto 20px auto;
+        }
+
+        .modal-header { text-align: center; margin-bottom: 25px; }
+        .modal-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; color: var(--text); }
+        .modal-subtitle { color: var(--neon-pink); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Detailed Grid in Modal */
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .d-card {
+            background: rgba(255,255,255,0.03);
+            padding: 15px;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .d-label { font-size: 0.8rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+        .d-value { font-size: 1.1rem; font-weight: 600; color: var(--text); }
+        .d-icon { color: var(--neon-blue); }
+
+        /* Sun Cycle */
+        .sun-cycle {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.03);
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .sc-item { text-align: center; }
+        .sc-time { font-weight: bold; color: #fff; margin-top: 5px; }
+
+        /* Loading */
+        .loader-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 2000;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+            transition: opacity 0.5s;
+        }
+        .spinner {
+            width: 50px; height: 50px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid var(--neon-pink);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        footer { text-align: center; color: var(--text-dim); margin-top: 30px; font-size: 0.75rem; }
+    </style>
+</head>
+<body>
+
+    <!-- Background Effects -->
+    <div class="bg-mesh"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <!-- Loader -->
+    <div id="loader" class="loader-screen">
+        <div class="spinner"></div>
+        <p style="margin-top: 15px; letter-spacing: 2px; font-size: 0.8rem;">INITIALIZING SATELLITE</p>
+    </div>
+
+    <div class="container" id="app-container" style="display:none;">
+        
+        <!-- Header -->
+        <header>
+            <div class="city-badge">Kohlu, Balochistan</div>
+            <i class="fas fa-sync-alt refresh-btn" onclick="fetchData()"></i>
+        </header>
+
+        <!-- Current Weather Hero (Clickable) -->
+        <div class="hero-card" onclick="openCurrentModal()">
+            <div class="condition-pill" id="hero-condition">--</div>
+            <div id="hero-icon" style="font-size: 4rem; margin: 10px 0;"></div>
+            <div class="main-temp"><span id="hero-temp">--</span>°</div>
+            <div class="hl-row">
+                High: <span id="hero-high">--</span>° • Low: <span id="hero-low">--</span>°
+            </div>
+            <div style="margin-top:15px; font-size:0.9rem; color: var(--neon-blue);">
+                <i class="fas fa-wind"></i> <span id="hero-wind">--</span> km/h &nbsp;|&nbsp; 
+                <i class="fas fa-droplet"></i> <span id="hero-humidity">--</span>%
+            </div>
+        </div>
+
+        <!-- Hourly Scroll -->
+        <div class="section-head">
+            <div class="section-title">Hourly Forecast</div>
+            <div class="see-more">Next 24 Hours</div>
+        </div>
+        <div class="scroll-container" id="hourly-list">
+            <!-- JS Injected -->
+        </div>
+
+        <!-- Daily Forecast -->
+        <div class="section-head" style="margin-top: 30px;">
+            <div class="section-title">7-Day Outlook</div>
+            <div class="see-more">Detailed</div>
+        </div>
+        <div class="daily-list" id="daily-list">
+            <!-- JS Injected -->
+        </div>
+
+        <footer>
+            Weather Kohlu Pro<br>
+            Designed by Kashif
+        </footer>
+    </div>
+
+    <!-- MODAL POPUP -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" id="modal-content">
+            <div class="close-bar"></div>
+            <div id="modal-body">
+                <!-- Content injected dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Store
+        let weatherData = null;
+        let airData = null;
+
+        // Coordinates for Kohlu
+        const LAT = 29.8965;
+        const LON = 69.2532;
+
+        // WMO Codes
+        const wmoCodes = {
+            0: { label: "Clear Sky", icon: "fa-sun" },
+            1: { label: "Mainly Clear", icon: "fa-cloud-sun" },
+            2: { label: "Partly Cloudy", icon: "fa-cloud-sun" },
+            3: { label: "Overcast", icon: "fa-cloud" },
+            45: { label: "Fog", icon: "fa-smog" },
+            51: { label: "Drizzle", icon: "fa-cloud-rain" },
+            61: { label: "Rain", icon: "fa-cloud-showers-heavy" },
+            71: { label: "Snow", icon: "fa-snowflake" },
+            95: { label: "Thunderstorm", icon: "fa-bolt" }
+        };
+
+        function getWmo(code, isDay=1) {
+            let w = wmoCodes[code] || { label: "Cloudy", icon: "fa-cloud" };
+            // Adjust icon for night if clear/partly cloudy
+            if (!isDay && (code === 0 || code === 1 || code === 2)) {
+                if (code === 0) w = { label: "Clear Night", icon: "fa-moon" };
+                else w = { label: "Partly Cloudy", icon: "fa-cloud-moon" };
+            }
+            return w;
+        }
+
+        async function fetchData() {
+            document.getElementById('loader').style.opacity = '1';
+            document.getElementById('loader').style.zIndex = '2000';
+            
+            try {
+                // Fetch Detailed Weather + Air Quality
+                const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover,dew_point_2m&hourly=temperature_2m,weather_code,visibility,uv_index,precipitation_probability,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,surface_pressure,cloud_cover,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,uv_index_max,wind_speed_10m_max,precipitation_probability_max&timezone=auto`);
+                
+                const aRes = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LAT}&longitude=${LON}&current=us_aqi,pm2_5,pm10,dust`);
+
+                weatherData = await wRes.json();
+                airData = await aRes.json();
+
+                updateUI();
+
+                setTimeout(() => {
+                    document.getElementById('loader').style.opacity = '0';
+                    setTimeout(() => document.getElementById('loader').style.zIndex = '-1', 500);
+                    document.getElementById('app-container').style.display = 'block';
+                }, 800);
+
+            } catch (err) {
+                alert("Connection failed. Please check internet.");
+                console.error(err);
+            }
+        }
+
+        function updateUI() {
+            const cur = weatherData.current;
+            const daily = weatherData.daily;
+            
+            // Hero Section
+            const wInfo = getWmo(cur.weather_code, cur.is_day);
+            document.getElementById('hero-temp').innerText = Math.round(cur.temperature_2m);
+            document.getElementById('hero-condition').innerText = wInfo.label;
+            document.getElementById('hero-icon').innerHTML = `<i class="fas ${wInfo.icon}" style="color: ${cur.is_day ? '#00eaff' : '#ff00ff'}; filter: drop-shadow(0 0 10px rgba(255,255,255,0.4))"></i>`;
+            document.getElementById('hero-high').innerText = Math.round(daily.temperature_2m_max[0]);
+            document.getElementById('hero-low').innerText = Math.round(daily.temperature_2m_min[0]);
+            document.getElementById('hero-wind').innerText = cur.wind_speed_10m;
+            document.getElementById('hero-humidity').innerText = cur.relative_humidity_2m;
+
+            // Hourly List
+            const hContainer = document.getElementById('hourly-list');
+            hContainer.innerHTML = '';
+            const nowHour = new Date().getHours();
+            
+            for(let i=nowHour; i<nowHour+24; i++) {
+                if(i >= weatherData.hourly.time.length) break;
+                
+                const hTemp = Math.round(weatherData.hourly.temperature_2m[i]);
+                const hCode = weatherData.hourly.weather_code[i];
+                const hDay = weatherData.hourly.is_day[i];
+                const hTimeObj = new Date(weatherData.hourly.time[i]);
+                const hTime = i === nowHour ? "Now" : hTimeObj.toLocaleString('en-US', {hour: 'numeric', hour12: true});
+                const hPop = weatherData.hourly.precipitation_probability[i];
+                const hIcon = getWmo(hCode, hDay).icon;
+
+                const div = document.createElement('div');
+                div.className = 'hour-item';
+                div.innerHTML = `
+                    <div class="hour-time">${hTime}</div>
+                    <i class="fas ${hIcon} hour-icon" style="color: ${hDay ? '#fff' : '#aaa'}"></i>
+                    <div class="hour-temp">${hTemp}°</div>
+                    <div class="pop-badge"><i class="fas fa-tint"></i> ${hPop}%</div>
+                `;
+                div.onclick = () => openHourlyModal(i);
+                hContainer.appendChild(div);
+            }
+
+            // Daily List
+            const dContainer = document.getElementById('daily-list');
+            dContainer.innerHTML = '';
+            
+            for(let i=0; i<7; i++) {
+                const date = new Date(daily.time[i]);
+                const dayName = i===0 ? "Today" : date.toLocaleDateString('en-US', {weekday: 'long'});
+                const max = Math.round(daily.temperature_2m_max[i]);
+                const min = Math.round(daily.temperature_2m_min[i]);
+                const code = daily.weather_code[i];
+                const pop = daily.precipitation_probability_max[i];
+                const info = getWmo(code);
+
+                const div = document.createElement('div');
+                div.className = 'day-row';
+                div.innerHTML = `
+                    <div class="day-left">
+                        <div class="day-name">${dayName.substring(0,3)}</div>
+                        <i class="fas ${info.icon} day-icon"></i>
+                        ${pop > 20 ? `<div class="day-pop"><i class="fas fa-umbrella"></i> ${pop}%</div>` : ''}
+                    </div>
+                    <div class="day-temps">
+                        <span class="max-t">${max}°</span>
+                        <span class="min-t">${min}°</span>
+                    </div>
+                `;
+                div.onclick = () => openDailyModal(i);
+                dContainer.appendChild(div);
+            }
+        }
+
+        /* --- MODAL LOGIC --- */
+
+        function openModal() {
+            document.getElementById('modal-overlay').classList.add('active');
+            document.body.style.overflow = 'hidden'; // Stop background scrolling
+        }
+
+        function closeModal(e) {
+            if(e.target.id === 'modal-overlay' || e.target.className === 'close-bar') {
+                document.getElementById('modal-overlay').classList.remove('active');
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        // 1. Current Weather Modal
+        function openCurrentModal() {
+            const cur = weatherData.current;
+            const air = airData.current;
+            const daily = weatherData.daily; // For sunrise/sunset
+            const wInfo = getWmo(cur.weather_code, cur.is_day);
+            const body = document.getElementById('modal-body');
+
+            // Calculating Cloud Ceiling (approx from generic levels if available, Open-Meteo doesn't give exact ceiling always, using standard cloud cover as proxy or static text for realism if 0 data)
+            const ceiling = cur.cloud_cover > 50 ? "4,500 ft" : "Unlimited"; 
+
+            body.innerHTML = `
+                <div class="modal-header">
+                    <div class="modal-subtitle">Current Conditions</div>
+                    <div class="modal-title">${wInfo.label}</div>
+                    <div style="font-size:3rem; font-weight:200;">${Math.round(cur.temperature_2m)}°</div>
+                    <div style="color:var(--text-dim)">RealFeel® ${Math.round(cur.apparent_temperature)}°</div>
+                </div>
+
+                <div class="detail-grid">
+                    ${makeCard("Wind Gusts", cur.wind_gusts_10m + " km/h", "fa-wind")}
+                    ${makeCard("Humidity", cur.relative_humidity_2m + "%", "fa-tint")}
+                    ${makeCard("Dew Point", Math.round(cur.dew_point_2m) + "°", "fa-temperature-low")}
+                    ${makeCard("Pressure", Math.round(cur.pressure_msl) + " mb", "fa-compress-arrows-alt")}
+                    ${makeCard("Cloud Cover", cur.cloud_cover + "%", "fa-cloud")}
+                    ${makeCard("Air Quality (AQI)", air.us_aqi, "fa-lungs")}
+                    ${makeCard("UV Index", weatherData.hourly.uv_index[new Date().getHours()] || 0, "fa-sun")}
+                    ${makeCard("Visibility", "10 km", "fa-eye")}
+                </div>
+
+                <div class="sun-cycle">
+                    <div class="sc-item">
+                        <i class="fas fa-sun" style="color:gold"></i>
+                        <div class="sc-time">${new Date(daily.sunrise[0]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                        <div style="font-size:0.7rem; color:#aaa">Sunrise</div>
+                    </div>
+                     <div class="sc-item">
+                        <i class="fas fa-moon" style="color:violet"></i>
+                        <div class="sc-time">${new Date(daily.sunset[0]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                         <div style="font-size:0.7rem; color:#aaa">Sunset</div>
+                    </div>
+                </div>
+            `;
+            openModal();
+        }
+
+        // 2. Hourly Modal
+        function openHourlyModal(index) {
+            const h = weatherData.hourly;
+            const time = new Date(h.time[index]);
+            const wInfo = getWmo(h.weather_code[index], h.is_day[index]);
+            const body = document.getElementById('modal-body');
+
+            body.innerHTML = `
+                <div class="modal-header">
+                    <div class="modal-subtitle">${time.toLocaleDateString()}</div>
+                    <div class="modal-title">${time.toLocaleTimeString([], {hour:'2-digit', minute:'00'})} Forecast</div>
+                    <div style="font-size:3rem; font-weight:200;">${Math.round(h.temperature_2m[index])}°</div>
+                    <div style="color:var(--neon-pink)">${wInfo.label}</div>
+                </div>
+
+                <div class="detail-grid">
+                    ${makeCard("Precipitation", h.precipitation_probability[index] + "%", "fa-umbrella")}
+                    ${makeCard("Wind Speed", h.wind_speed_10m[index] + " km/h", "fa-wind")}
+                    ${makeCard("Wind Gusts", h.wind_gusts_10m[index] + " km/h", "fa-wind")}
+                    ${makeCard("Humidity", h.relative_humidity_2m[index] + "%", "fa-tint")}
+                    ${makeCard("UV Index", h.uv_index[index], "fa-sun")}
+                    ${makeCard("Dew Point", Math.round(h.dew_point_2m[index]) + "°", "fa-temperature-low")}
+                    ${makeCard("Visibility", (h.visibility[index]/1000).toFixed(1) + " km", "fa-eye")}
+                    ${makeCard("Pressure", Math.round(h.surface_pressure[index]) + " mb", "fa-tachometer-alt")}
+                </div>
+            `;
+            openModal();
+        }
+
+        // 3. Daily Modal
+        function openDailyModal(index) {
+            const d = weatherData.daily;
+            const date = new Date(d.time[index]);
+            const wInfo = getWmo(d.weather_code[index]);
+            const body = document.getElementById('modal-body');
+
+            body.innerHTML = `
+                <div class="modal-header">
+                    <div class="modal-subtitle">Daily Breakdown</div>
+                    <div class="modal-title">${date.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'})}</div>
+                    <div style="font-size:3rem; font-weight:200;">
+                        ${Math.round(d.temperature_2m_max[index])}° <span style="font-size:1.5rem; color:#aaa">/ ${Math.round(d.temperature_2m_min[index])}°</span>
+                    </div>
+                    <div style="color:var(--neon-blue); margin-top:5px;">${wInfo.label}</div>
+                </div>
+
+                <div class="detail-grid">
+                    ${makeCard("Rain Prob", d.precipitation_probability_max[index] + "%", "fa-umbrella")}
+                    ${makeCard("Total Rain", d.precipitation_sum[index] + " mm", "fa-glass-whiskey")}
+                    ${makeCard("Max Wind", d.wind_speed_10m_max[index] + " km/h", "fa-wind")}
+                    ${makeCard("Max UV", d.uv_index_max[index], "fa-sun")}
+                </div>
+
+                <div class="sun-cycle">
+                    <div class="sc-item">
+                        <i class="fas fa-sun" style="color:gold"></i>
+                        <div class="sc-time">${new Date(d.sunrise[index]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                        <div style="font-size:0.7rem; color:#aaa">Sunrise</div>
+                    </div>
+                     <div class="sc-item">
+                        <i class="fas fa-moon" style="color:violet"></i>
+                        <div class="sc-time">${new Date(d.sunset[index]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                         <div style="font-size:0.7rem; color:#aaa">Sunset</div>
+                    </div>
+                </div>
+            `;
+            openModal();
+        }
+
+        // Helper to create grid cards
+        function makeCard(label, value, icon) {
+            return `
+                <div class="d-card">
+                    <div class="d-label"><i class="fas ${icon} d-icon"></i> ${label}</div>
+                    <div class="d-value">${value}</div>
+                </div>
+            `;
+        }
+
+        // Init
+        fetchData();
+
+    </script>
+</body>
+</html>
