@@ -1,2 +1,2 @@
-# My-html-game
-Game
+# My-html-app
+Kohlu weather app by M. Kashif 
